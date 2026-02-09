@@ -20,7 +20,13 @@ st.set_page_config(page_title="📱 High-End Phone Finder", layout="wide")
 # -------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("phones_with_tier.csv", low_memory=False)
+    cols = [
+    "brand_name","model","release_year",
+    "processor_name","ram_capacity",
+    "battery_capacity","refresh_rate","is_high_end"
+    ]
+
+    pd.read_csv("phones_with_tier.csv", usecols=cols)
 
     # ensure numeric
     for col in ["release_year", "ram_capacity", "refresh_rate"]:

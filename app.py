@@ -30,7 +30,7 @@ def load_data():
     # -------------------------
     # REMOVE IMPOSSIBLE VALUES
     # -------------------------
-    df = df[(df["RAM"].between(4, 24)) | (df["RAM"].isna())]
+    df = df[(df["RAM"].between(4, 64)) | (df["RAM"].isna())]
     df = df[(df["Storage"].between(16, 2048)) | (df["Storage"].isna())]
 
     return df

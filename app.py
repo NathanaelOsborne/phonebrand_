@@ -1,99 +1,111 @@
 import streamlit as st
 import pandas as pd
-import re
 
-# ---------------------------
-# Load dataset (cached)
-# ---------------------------
+st.set_page_config(page_title="Phone Finder", layout="wide")
+st.title("📱 Phone Recommender")
+
+# -----------------------------
+# Load data
+# -----------------------------
 @st.cache_data
 def load_data():
-    return pd.read_csv("phones.csv")
+    df = pd.read_csv("phones.csv")
+
+    # ensure numeric columns are numeric
+    numeric_cols = ["RAM", "Storage", "Battery", "Refresh_Rate", "Price"]
+    for c in numeric_cols:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    return df
+
 
 df = load_data()
 
 
-# ---------------------------
-# Parse user text → preferences
-# ---------------------------
-def parse_query(text):
-    text = text.lower()
-    prefs = {}
+# -----------------------------
+# Sidebar filters
+# -----------------------------
+st.sidebar.header("Filters")
 
-    # brand
-    brands = df["brand"].astype(str).str.lower().unique()
-    for b in brands:
-        if b in text:
-            prefs["brand"] = b
-
-    # RAM (e.g., 8GB)
-    ram = re.search(r'(\d+)\s*gb', text)
-    if ram:
-        prefs["ram"] = int(ram.group(1))
-
-    # Storage (128GB etc)
-    storage = re.search(r'(\d+)\s*(gb|tb)\s*(storage)?', text)
-    if storage:
-        val = int(storage.group(1))
-        if storage.group(2) == "tb":
-            val *= 1024
-        prefs["storage"] = val
-
-    # Battery
-    battery = re.search(r'(\d+)\s*mah', text)
-    if battery:
-        prefs["battery"] = int(battery.group(1))
-
-    # Price under X juta/million
-    price = re.search(r'(under|below|<)\s*(\d+)', text)
-    if price:
-        prefs["max_price"] = int(price.group(2)) * 1_000_000
-
-    return prefs
+filtered = df.copy()
 
 
-# ---------------------------
-# Filter dataset
-# ---------------------------
-def filter_phones(df, prefs):
-    result = df.copy()
+# BRAND
+brands = ["All"] + sorted(df["Brand"].dropna().unique())
+brand = st.sidebar.selectbox("Brand", brands)
 
-    if "brand" in prefs:
-        result = result[result["brand"].str.lower() == prefs["brand"]]
-
-    if "ram" in prefs:
-        result = result[result["ram"] >= prefs["ram"]]
-
-    if "storage" in prefs:
-        result = result[result["storage"] >= prefs["storage"]]
-
-    if "battery" in prefs:
-        result = result[result["battery"] >= prefs["battery"]]
-
-    if "max_price" in prefs:
-        result = result[result["price"] <= prefs["max_price"]]
-
-    return result
+if brand != "All":
+    filtered = filtered[filtered["Brand"] == brand]
 
 
-# ---------------------------
-# UI
-# ---------------------------
-st.title("📱 Phone Finder AI")
+# OS
+oses = ["All"] + sorted(df["OS"].dropna().unique())
+os_choice = st.sidebar.selectbox("OS", oses)
 
-st.write("Example:")
-st.caption("Samsung 8GB RAM under 5 juta battery 5000mah")
+if os_choice != "All":
+    filtered = filtered[filtered["OS"] == os_choice]
 
-query = st.text_input("Describe your ideal phone")
 
-if st.button("Search"):
-    prefs = parse_query(query)
+# CPU keyword search
+cpu_keyword = st.sidebar.text_input("CPU contains")
 
-    st.write("Detected preferences:", prefs)
+if cpu_keyword:
+    filtered = filtered[
+        filtered["CPU"].str.contains(cpu_keyword, case=False, na=False)
+    ]
 
-    result = filter_phones(df, prefs)
 
-    if len(result) == 0:
-        st.warning("No phones match 😢")
-    else:
-        st.success(f"{len(result)} phones found")
-        st.dataframe(result)
+# ---------- numeric sliders helper ----------
+def slider_filter(df, column, label):
+    col_data = df[column].dropna()
+    if len(col_data) == 0:
+        return df
+
+    min_v = int(col_data.min())
+    max_v = int(col_data.max())
+
+    rng = st.sidebar.slider(label, min_v, max_v, (min_v, max_v))
+
+    return df[df[column].between(*rng)]
+
+
+# RAM
+if "RAM" in df.columns:
+    filtered = slider_filter(filtered, "RAM", "RAM (GB)")
+
+# Storage
+if "Storage" in df.columns:
+    filtered = slider_filter(filtered, "Storage", "Storage (GB)")
+
+# Battery
+if "Battery" in df.columns:
+    filtered = slider_filter(filtered, "Battery", "Battery (mAh)")
+
+# Refresh rate
+if "Refresh_Rate" in df.columns:
+    filtered = slider_filter(filtered, "Refresh_Rate", "Refresh Rate (Hz)")
+
+# Price
+if "Price" in df.columns:
+    filtered = slider_filter(filtered, "Price", "Price")
+
+
+# Resolution dropdown
+resolutions = ["All"] + sorted(df["Resolution"].dropna().unique())
+res_choice = st.sidebar.selectbox("Resolution", resolutions)
+
+if res_choice != "All":
+    filtered = filtered[filtered["Resolution"] == res_choice]
+
+
+# -----------------------------
+# Results
+# -----------------------------
+st.subheader(f"Results: {len(filtered)} phones found")
+
+# sort by price if available
+if "Price" in filtered.columns:
+    filtered = filtered.sort_values("Price")
+
+st.dataframe(filtered, use_container_width=True)

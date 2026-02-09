@@ -2,19 +2,22 @@ import streamlit as st
 import pandas as pd
 import re
 
+# =====================================================
+# Page
+# =====================================================
 st.set_page_config(page_title="CSV Phone Merger", layout="wide")
 st.title("📂 Robust Phone Dataset Compare & Merge Tool")
-
 
 st.write("""
 Upload 2 CSV files.
 
 This tool will:
-✅ auto-detect Brand & Model columns
-✅ normalize names
-✅ handle different schemas
-✅ find missing phones
-✅ merge distinct rows safely
+✅ auto-detect Brand & Model  
+✅ allow manual column selection if needed  
+✅ normalize names  
+✅ handle different schemas  
+✅ find missing phones  
+✅ merge distinct rows safely  
 """)
 
 
@@ -23,16 +26,15 @@ This tool will:
 # =====================================================
 
 def clean_columns(df):
-    """lowercase + strip column names"""
     df.columns = df.columns.str.strip().str.lower()
     return df
 
 
-def find_col(df, candidates):
-    """find matching column name automatically"""
-    for c in candidates:
-        if c in df.columns:
-            return c
+def find_col(df, keywords):
+    for col in df.columns:
+        for k in keywords:
+            if k in col:
+                return col
     return None
 
 
@@ -44,16 +46,32 @@ def normalize_text(x):
     return x
 
 
-def prepare(df):
+# =====================================================
+# Prepare dataframe (auto + manual fallback)
+# =====================================================
+def prepare(df, label):
     df = clean_columns(df)
 
-    brand_col = find_col(df, ["brand", "brand_name", "manufacturer"])
-    model_col = find_col(df, ["model", "model_name", "phone", "device"])
+    brand_candidates = ["brand", "manufacturer", "company"]
+    model_candidates = ["model", "phone", "device", "name", "product"]
 
+    brand_col = find_col(df, brand_candidates)
+    model_col = find_col(df, model_candidates)
+
+    # -------------------------
+    # Manual fallback
+    # -------------------------
     if not brand_col or not model_col:
-        st.error("Could not detect Brand/Model columns automatically.")
-        st.stop()
+        st.warning(f"⚠️ Could not auto-detect Brand/Model for {label}. Please select manually.")
 
+        cols = list(df.columns)
+
+        brand_col = st.selectbox(f"{label} → Select Brand column", cols, key=f"brand_{label}")
+        model_col = st.selectbox(f"{label} → Select Model column", cols, key=f"model_{label}")
+
+    # -------------------------
+    # Create clean keys
+    # -------------------------
     df["brand_clean"] = df[brand_col].astype(str).str.strip().str.title()
     df["model_clean"] = df[model_col].apply(normalize_text)
 
@@ -70,15 +88,17 @@ file_b = st.file_uploader("Upload CSV B", type=["csv"])
 
 
 # =====================================================
-# Process
+# Main logic
 # =====================================================
 if file_a and file_b:
 
     df_a = pd.read_csv(file_a)
     df_b = pd.read_csv(file_b)
 
-    df_a = prepare(df_a)
-    df_b = prepare(df_b)
+    st.success("Files loaded successfully")
+
+    df_a = prepare(df_a, "CSV A")
+    df_b = prepare(df_b, "CSV B")
 
     keys_a = set(df_a["key"])
     keys_b = set(df_b["key"])
@@ -90,16 +110,24 @@ if file_a and file_b:
     missing_in_b = df_a[~df_a["key"].isin(keys_b)]
 
     # -----------------------------------------
-    # Merge safely (handles diff columns)
+    # Safe merge (handles diff columns)
     # -----------------------------------------
     merged = pd.concat([df_a, df_b], ignore_index=True, sort=False)
     merged_unique = merged.drop_duplicates(subset="key")
 
-    # remove helper cols
+    # remove helper columns
     drop_cols = ["key", "brand_clean", "model_clean"]
-    merged_unique = merged_unique.drop(columns=drop_cols, errors="ignore")
     missing_in_a = missing_in_a.drop(columns=drop_cols, errors="ignore")
     missing_in_b = missing_in_b.drop(columns=drop_cols, errors="ignore")
+    merged_unique = merged_unique.drop(columns=drop_cols, errors="ignore")
+
+    # =================================================
+    # Summary
+    # =================================================
+    st.markdown("### 📊 Summary")
+    st.write(f"CSV A rows: {len(df_a)}")
+    st.write(f"CSV B rows: {len(df_b)}")
+    st.write(f"Unique merged rows: {len(merged_unique)}")
 
     # =================================================
     # Display
@@ -108,15 +136,15 @@ if file_a and file_b:
 
     with c1:
         st.subheader(f"Missing in A ({len(missing_in_a)})")
-        st.dataframe(missing_in_a)
+        st.dataframe(missing_in_a, use_container_width=True)
 
     with c2:
         st.subheader(f"Missing in B ({len(missing_in_b)})")
-        st.dataframe(missing_in_b)
+        st.dataframe(missing_in_b, use_container_width=True)
 
     with c3:
         st.subheader(f"Merged Unique ({len(merged_unique)})")
-        st.dataframe(merged_unique)
+        st.dataframe(merged_unique, use_container_width=True)
 
     # =================================================
     # Download

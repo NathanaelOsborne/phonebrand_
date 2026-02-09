@@ -13,16 +13,14 @@ def load_data():
     df = pd.read_csv("phones.csv")
 
     # -------------------------
-    # Ensure numeric types
+    # numeric types
     # -------------------------
     numeric_cols = ["RAM", "Storage", "Battery", "Refresh_Rate", "Price"]
     for c in numeric_cols:
-        if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
+        df[c] = pd.to_numeric(df[c], errors="coerce")
 
     # -------------------------
-    # BRAND normalization
-    # vivo / VIVO / vivo  -> Vivo
+    # Brand normalization
     # -------------------------
     df["Brand"] = (
         df["Brand"]
@@ -46,9 +44,31 @@ def load_data():
     df["OS"] = df["OS"].apply(normalize_os)
 
     # -------------------------
-    # Remove impossible specs
+    # Resolution normalization
     # -------------------------
-    df = df[(df["RAM"].between(4, 64)) | (df["RAM"].isna())]
+    def normalize_resolution(x):
+        if pd.isna(x):
+            return None
+
+        x = str(x).lower().replace("×", "x").replace(" ", "")
+
+        if "x" not in x:
+            return x
+
+        try:
+            w, h = x.split("x")
+            w, h = int(w), int(h)
+            w, h = sorted([w, h])
+            return f"{w}x{h}"
+        except:
+            return x
+
+    df["Resolution"] = df["Resolution"].apply(normalize_resolution)
+
+    # -------------------------
+    # remove impossible specs
+    # -------------------------
+    df = df[(df["RAM"].between(4, 24)) | (df["RAM"].isna())]
     df = df[(df["Storage"].between(16, 2048)) | (df["Storage"].isna())]
 
     return df
@@ -64,31 +84,22 @@ filtered = df.copy()
 st.sidebar.header("Filters")
 
 
-# -------------------------
-# Brand dropdown
-# -------------------------
+# Brand
 brands = ["All"] + sorted(df["Brand"].dropna().unique())
 brand = st.sidebar.selectbox("Brand", brands)
-
 if brand != "All":
     filtered = filtered[filtered["Brand"] == brand]
 
 
-# -------------------------
-# OS dropdown
-# -------------------------
+# OS
 oses = ["All"] + sorted(df["OS"].dropna().unique())
 os_choice = st.sidebar.selectbox("OS", oses)
-
 if os_choice != "All":
     filtered = filtered[filtered["OS"] == os_choice]
 
 
-# -------------------------
 # CPU search
-# -------------------------
 cpu_keyword = st.sidebar.text_input("CPU contains")
-
 if cpu_keyword:
     filtered = filtered[
         filtered["CPU"].str.contains(cpu_keyword, case=False, na=False)
@@ -96,16 +107,12 @@ if cpu_keyword:
 
 
 # =====================================================
-# Checkbox filters (discrete values only)
+# Checkbox filters
 # =====================================================
 def checkbox_filter(df, column, label):
     st.sidebar.markdown(f"### {label}")
 
     values = sorted(df[column].dropna().unique())
-
-    if len(values) == 0:
-        return df
-
     selected = []
 
     for v in values:
@@ -124,11 +131,10 @@ filtered = checkbox_filter(filtered, "Refresh_Rate", "Refresh Rate (Hz)")
 
 
 # =====================================================
-# Slider filters (continuous values)
+# Sliders
 # =====================================================
 def slider_filter(df, column, label, step):
     col = df[column].dropna()
-
     if len(col) == 0:
         return df
 
@@ -144,12 +150,9 @@ filtered = slider_filter(filtered, "Battery", "Battery (mAh)", 100)
 filtered = slider_filter(filtered, "Price", "Price", 100000)
 
 
-# -------------------------
-# Resolution dropdown
-# -------------------------
+# Resolution
 resolutions = ["All"] + sorted(df["Resolution"].dropna().unique())
 res_choice = st.sidebar.selectbox("Resolution", resolutions)
-
 if res_choice != "All":
     filtered = filtered[filtered["Resolution"] == res_choice]
 
@@ -159,7 +162,5 @@ if res_choice != "All":
 # =====================================================
 st.subheader(f"Results: {len(filtered)} phones found")
 
-if "Price" in filtered.columns:
-    filtered = filtered.sort_values("Price")
-
+filtered = filtered.sort_values("Price", na_position="last")
 st.dataframe(filtered, use_container_width=True)

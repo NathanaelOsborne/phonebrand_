@@ -4,17 +4,17 @@ import pandas as pd
 st.set_page_config(page_title="Phone Finder", layout="wide")
 st.title("📱 Phone Recommender")
 
-# ---------------------------------
+
+# ---------------------------------------
 # Load data
-# ---------------------------------
+# ---------------------------------------
 @st.cache_data
 def load_data():
     df = pd.read_csv("phones.csv")
 
     numeric_cols = ["RAM", "Storage", "Battery", "Refresh_Rate", "Price"]
     for c in numeric_cols:
-        if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
+        df[c] = pd.to_numeric(df[c], errors="coerce")
 
     return df
 
@@ -23,12 +23,13 @@ df = load_data()
 filtered = df.copy()
 
 
-# ---------------------------------
-# Sidebar filters
-# ---------------------------------
+# ---------------------------------------
+# Sidebar
+# ---------------------------------------
 st.sidebar.header("Filters")
 
-# BRAND
+
+# ---------- BRAND ----------
 brands = ["All"] + sorted(df["Brand"].dropna().unique())
 brand = st.sidebar.selectbox("Brand", brands)
 
@@ -36,7 +37,7 @@ if brand != "All":
     filtered = filtered[filtered["Brand"] == brand]
 
 
-# OS
+# ---------- OS ----------
 oses = ["All"] + sorted(df["OS"].dropna().unique())
 os_choice = st.sidebar.selectbox("OS", oses)
 
@@ -44,7 +45,7 @@ if os_choice != "All":
     filtered = filtered[filtered["OS"] == os_choice]
 
 
-# CPU keyword search
+# ---------- CPU keyword ----------
 cpu_keyword = st.sidebar.text_input("CPU contains")
 if cpu_keyword:
     filtered = filtered[
@@ -52,16 +53,19 @@ if cpu_keyword:
     ]
 
 
-# ---------------------------------
-# Multi-select helper
-# ---------------------------------
-def multiselect_filter(df, column, label):
+# ---------------------------------------
+# Checkbox filter helper
+# ---------------------------------------
+def checkbox_filter(df, column, label):
+    st.sidebar.markdown(f"### {label}")
+
     values = sorted(df[column].dropna().unique())
 
-    if len(values) == 0:
-        return df
+    selected = []
 
-    selected = st.sidebar.multiselect(label, values, default=values)
+    for v in values:
+        if st.sidebar.checkbox(str(int(v)), value=True, key=f"{column}_{v}"):
+            selected.append(v)
 
     if selected:
         df = df[df[column].isin(selected)]
@@ -69,20 +73,20 @@ def multiselect_filter(df, column, label):
     return df
 
 
-# RAM
-filtered = multiselect_filter(filtered, "RAM", "RAM (GB)")
+# ---------- RAM ----------
+filtered = checkbox_filter(filtered, "RAM", "RAM (GB)")
 
-# STORAGE
-filtered = multiselect_filter(filtered, "Storage", "Storage (GB)")
+# ---------- STORAGE ----------
+filtered = checkbox_filter(filtered, "Storage", "Storage (GB)")
 
-# REFRESH RATE
-filtered = multiselect_filter(filtered, "Refresh_Rate", "Refresh Rate (Hz)")
+# ---------- REFRESH RATE ----------
+filtered = checkbox_filter(filtered, "Refresh_Rate", "Refresh Rate (Hz)")
 
 
-# ---------------------------------
-# Sliders (continuous values)
-# ---------------------------------
-def slider_filter(df, column, label, step=None):
+# ---------------------------------------
+# Sliders for continuous values
+# ---------------------------------------
+def slider_filter(df, column, label, step):
     col = df[column].dropna()
     if len(col) == 0:
         return df
@@ -95,13 +99,11 @@ def slider_filter(df, column, label, step=None):
     return df[df[column].between(*rng)]
 
 
-filtered = slider_filter(filtered, "Battery", "Battery (mAh)", step=100)
-filtered = slider_filter(filtered, "Price", "Price", step=100000)
+filtered = slider_filter(filtered, "Battery", "Battery (mAh)", 100)
+filtered = slider_filter(filtered, "Price", "Price", 100000)
 
 
-# ---------------------------------
-# Resolution dropdown
-# ---------------------------------
+# ---------- Resolution dropdown ----------
 resolutions = ["All"] + sorted(df["Resolution"].dropna().unique())
 res_choice = st.sidebar.selectbox("Resolution", resolutions)
 
@@ -109,9 +111,9 @@ if res_choice != "All":
     filtered = filtered[filtered["Resolution"] == res_choice]
 
 
-# ---------------------------------
+# ---------------------------------------
 # Results
-# ---------------------------------
+# ---------------------------------------
 st.subheader(f"Results: {len(filtered)} phones found")
 
 if "Price" in filtered.columns:

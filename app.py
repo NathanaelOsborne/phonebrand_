@@ -48,7 +48,7 @@ def load_data():
     # -------------------------
     # Remove impossible specs
     # -------------------------
-    df = df[(df["RAM"].between(4, 24)) | (df["RAM"].isna())]
+    df = df[(df["RAM"].between(4, 64)) | (df["RAM"].isna())]
     df = df[(df["Storage"].between(16, 2048)) | (df["Storage"].isna())]
 
     return df

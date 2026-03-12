@@ -26,7 +26,7 @@ div[data-baseweb="input"] > div:focus-within {
 # =====================================================
 @st.cache_data
 def load_data():
-    df = pd.read_csv("phoneList.csv")
+    df = pd.read_csv("phoneList.csv", sep=';')
 
     numeric_cols = ["RAM", "Storage", "Battery", "Refresh_Rate", "Price"]
     for c in numeric_cols:

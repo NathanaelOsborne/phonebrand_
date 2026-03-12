@@ -143,18 +143,14 @@ if cpu_keyword:
 # Checkbox filters
 # =====================================================
 def checkbox_filter(df, column, label):
+    if column not in df.columns:
+        return df
+
     st.sidebar.markdown(f"### {label}")
     values = sorted(df[column].dropna().unique())
 
-    selected = []
-    for v in values:
-        if st.sidebar.checkbox(str(int(v)), value=True, key=f"{column}_{v}"):
-            selected.append(v)
-
-    if selected:
-        df = df[df[column].isin(selected)]
-
-    return df
+    if len(values) == 0:
+        return df
 
 
 filtered = checkbox_filter(filtered, "RAM", "RAM (GB)")
@@ -165,11 +161,20 @@ filtered = checkbox_filter(filtered, "Refresh_Rate", "Refresh Rate (Hz)")
 # Sliders
 # =====================================================
 def slider_filter(df, column, label, step):
+    if column not in df.columns:
+        return df
+
     col = df[column].dropna()
+
     if len(col) == 0:
         return df
 
     min_v, max_v = int(col.min()), int(col.max())
+
+    # 🚨 prevent Streamlit crash
+    if min_v == max_v:
+        return df
+
     rng = st.sidebar.slider(label, min_v, max_v, (min_v, max_v), step=step)
 
     return df[df[column].between(*rng)]

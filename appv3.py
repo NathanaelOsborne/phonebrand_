@@ -4,7 +4,6 @@ import pandas as pd
 st.set_page_config(page_title="Phone Finder", layout="wide")
 st.title("📱 Phone Recommender")
 
-
 # =====================================================
 # Styling
 # =====================================================
@@ -20,21 +19,37 @@ div[data-baseweb="input"] > div:focus-within {
 </style>
 """, unsafe_allow_html=True)
 
-
 # =====================================================
 # Load + Clean + Score
 # =====================================================
 @st.cache_data
 def load_data():
-    df = pd.read_csv("phoneList.csv", sep=';')
+    df = pd.read_csv("phoneList.csv")
 
-    numeric_cols = ["RAM (GB)", "Storage (GB)", "Battery (mAh)", "Refresh Rate (Hz)", "Price (USD)"]
+    # -------------------------------------------------
+    # Rename columns to simpler names
+    # -------------------------------------------------
+    df = df.rename(columns={
+        "Model Name": "Model",
+        "RAM (GB)": "RAM",
+        "Storage (GB)": "Storage",
+        "Battery (mAh)": "Battery",
+        "Refresh Rate (Hz)": "Refresh_Rate",
+        "Price (USD)": "Price"
+    })
+
+    # -------------------------------------------------
+    # Numeric conversion
+    # -------------------------------------------------
+    numeric_cols = ["RAM", "Storage", "Battery", "Refresh_Rate", "Price"]
+
     for c in numeric_cols:
-        df[c] = pd.to_numeric(df[c], errors="coerce")
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
 
-    # -------------------------
+    # -------------------------------------------------
     # Brand normalization
-    # -------------------------
+    # -------------------------------------------------
     df["Brand"] = (
         df["Brand"]
         .astype(str)
@@ -43,9 +58,9 @@ def load_data():
         .str.title()
     )
 
-    # -------------------------
+    # -------------------------------------------------
     # OS normalization
-    # -------------------------
+    # -------------------------------------------------
     def normalize_os(x):
         x = str(x).lower()
         if "android" in x:
@@ -56,23 +71,11 @@ def load_data():
 
     df["OS"] = df["OS"].apply(normalize_os)
 
-    # -------------------------
-    # Resolution normalization
-    # -------------------------
-    df["Resolution"] = (
-        df["Resolution"]
-        .astype(str)
-        .str.lower()
-        .str.replace("×", "x")
-        .str.replace(" ", "")
-    )
-
     # =================================================
-    # 🔥 SPEC-BASED TIER SCORING (NEW)
+    # SPEC-BASED TIER SCORING
     # =================================================
 
     def norm(series):
-        """normalize 0-1"""
         return (series - series.min()) / (series.max() - series.min())
 
     df["score"] = (
@@ -97,6 +100,7 @@ def load_data():
 
     return df
 
+
 df = load_data()
 filtered = df.copy()
 
@@ -111,31 +115,29 @@ brand = st.sidebar.selectbox("Brand", brands)
 if brand != "All":
     filtered = filtered[filtered["Brand"] == brand]
 
-
 # OS
 oses = ["All"] + sorted(df["OS"].dropna().unique())
 os_choice = st.sidebar.selectbox("OS", oses)
 if os_choice != "All":
     filtered = filtered[filtered["OS"] == os_choice]
 
-
-# 🔥 Tier (now spec-based)
+# Tier
 tiers = ["All", "Entry-level", "Mid-range", "Premium", "Flagship"]
 tier_choice = st.sidebar.selectbox("Performance Tier", tiers)
 
 if tier_choice != "All":
     filtered = filtered[filtered["Tier"] == tier_choice]
 
-
 # CPU search
-cpu_keyword = st.sidebar.text_input("🔍 CPU search",
-                                    placeholder="Snapdragon, Dimensity, A17...")
+cpu_keyword = st.sidebar.text_input(
+    "🔍 CPU search",
+    placeholder="Snapdragon, Dimensity, A17..."
+)
 
 if cpu_keyword:
     filtered = filtered[
         filtered["CPU"].str.contains(cpu_keyword, case=False, na=False)
     ]
-
 
 # =====================================================
 # Checkbox filters
@@ -159,7 +161,6 @@ filtered = checkbox_filter(filtered, "RAM", "RAM (GB)")
 filtered = checkbox_filter(filtered, "Storage", "Storage (GB)")
 filtered = checkbox_filter(filtered, "Refresh_Rate", "Refresh Rate (Hz)")
 
-
 # =====================================================
 # Sliders
 # =====================================================
@@ -175,8 +176,7 @@ def slider_filter(df, column, label, step):
 
 
 filtered = slider_filter(filtered, "Battery", "Battery (mAh)", 100)
-filtered = slider_filter(filtered, "Price", "Price", 100000)
-
+filtered = slider_filter(filtered, "Price", "Price (USD)", 50)
 
 # =====================================================
 # Results
@@ -185,7 +185,6 @@ st.subheader(f"Results: {len(filtered)} phones found")
 filtered = filtered.sort_values("score", ascending=False)
 
 st.dataframe(filtered, use_container_width=True)
-
 
 # =====================================================
 # Download

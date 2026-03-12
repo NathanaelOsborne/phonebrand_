@@ -171,11 +171,23 @@ def slider_filter(df, column, label, step):
     if len(col) == 0:
         return df
 
-    min_v, max_v = int(col.min()), int(col.max())
+    min_v = int(col.min())
+    max_v = int(col.max())
 
-    rng = st.sidebar.slider(label, min_v, max_v, (min_v, max_v), step=step)
+    # 🚨 Prevent Streamlit slider crash
+    if min_v == max_v:
+        st.sidebar.write(f"{label}: {min_v}")
+        return df
 
-    return df[df[column].between(*rng)]
+    rng = st.sidebar.slider(
+        label,
+        min_value=min_v,
+        max_value=max_v,
+        value=(min_v, max_v),
+        step=step
+    )
+
+    return df[df[column].between(*rng)]    
 
 
 filtered = slider_filter(filtered, "Battery", "Battery (mAh)", 100)

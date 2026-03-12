@@ -28,7 +28,7 @@ div[data-baseweb="input"] > div:focus-within {
 def load_data():
     df = pd.read_csv("phoneList.csv", sep=';')
 
-    numeric_cols = ["RAM", "Storage", "Battery", "Refresh_Rate", "Price"]
+    numeric_cols = ["RAM (GB)", "Storage (GB)", "Battery (mAh)", "Refresh Rate (Hz)", "Price (USD)"]
     for c in numeric_cols:
         df[c] = pd.to_numeric(df[c], errors="coerce")
 

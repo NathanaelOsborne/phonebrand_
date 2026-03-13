@@ -130,12 +130,20 @@ os_choice = st.sidebar.selectbox("OS", oses)
 if os_choice != "All":
     filtered = filtered[filtered["OS"] == os_choice]
 
-# Year
-years = ["All"] + sorted(df["Year"].dropna().unique())
-year_choice = st.sidebar.selectbox("Release Year", years)
+#Year
+year_min = int(df["Year"].min())
+year_max = int(df["Year"].max())
 
-if year_choice != "All":
-    filtered = filtered[filtered["Year"] == year_choice]
+year_range = st.sidebar.slider(
+    "Release Year",
+    year_min,
+    year_max,
+    (year_min, year_max)
+)
+
+filtered = filtered[
+    filtered["Year"].between(year_range[0], year_range[1])
+]
 
 # Tier
 tiers = ["All", "Entry-level", "Mid-range", "Premium", "Flagship"]

@@ -137,7 +137,7 @@ if tier_choice != "All":
 
 
 # CPU search
-cpu_keyword = st.sidebar.text_input("🔍 CPU search")
+cpu_keyword = st.sidebar.text_input("🔍 CPU search", placeholder="Snapdragon, Dimensity, A17...")
 
 if cpu_keyword:
     filtered = filtered[

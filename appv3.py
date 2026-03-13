@@ -99,6 +99,10 @@ def load_data():
 
     df["Tier"] = df["score"].apply(tier)
 
+    # Extract release year
+    df["Release Date"] = pd.to_datetime(df["Release Date"], errors="coerce")
+    df["Year"] = df["Release Date"].dt.year
+
     return df
 
 
@@ -110,7 +114,6 @@ filtered = df.copy()
 # Sidebar Filters
 # =====================================================
 st.sidebar.header("Filters")
-
 
 # Brand
 brands = ["All"] + sorted(df["Brand"].dropna().unique())
@@ -127,6 +130,12 @@ os_choice = st.sidebar.selectbox("OS", oses)
 if os_choice != "All":
     filtered = filtered[filtered["OS"] == os_choice]
 
+# Year
+years = ["All"] + sorted(df["Year"].dropna().unique())
+year_choice = st.sidebar.selectbox("Release Year", years)
+
+if year_choice != "All":
+    filtered = filtered[filtered["Year"] == year_choice]
 
 # Tier
 tiers = ["All", "Entry-level", "Mid-range", "Premium", "Flagship"]
